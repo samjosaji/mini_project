@@ -300,7 +300,7 @@ export default function VendorDashboardScreen({ navigation }) {
                                                     <script>
                                                         var map = L.map('map', { zoomControl: false, attributionControl: false })
                                                             .setView([${location.latitude}, ${location.longitude}], 16);
-                                                        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+                                                        L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', { maxZoom: 19, subdomains: 'abc' }).addTo(map);
                                                         var icon = L.divIcon({
                                                             className: 'pin',
                                                             html: '<div style="width:16px;height:16px;border-radius:50%;background:#16a34a;border:3px solid white;box-shadow:0 0 0 5px rgba(22,163,74,0.25),0 2px 6px rgba(0,0,0,0.3);"></div>',

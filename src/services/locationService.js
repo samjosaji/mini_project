@@ -168,6 +168,29 @@ export const locationService = {
      */
     async startBackgroundLocationUpdates() {
         try {
+            // Check if device GPS/location services are enabled
+            const servicesEnabled = await Location.hasServicesEnabledAsync();
+            if (!servicesEnabled) {
+                Alert.alert(
+                    'Location Services Disabled',
+                    'Please enable GPS/Location Services in your device settings to use live location tracking.',
+                    [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                            text: 'Open Settings',
+                            onPress: () => {
+                                if (Platform.OS === 'ios') {
+                                    Linking.openURL('App-Prefs:Privacy&path=LOCATION');
+                                } else {
+                                    Linking.sendIntent('android.settings.LOCATION_SOURCE_SETTINGS');
+                                }
+                            },
+                        },
+                    ]
+                );
+                return { success: false, error: 'Location services are disabled on this device.' };
+            }
+
             const isRunning = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
             if (isRunning) {
                 console.log('[LocationService] Background location already running.');

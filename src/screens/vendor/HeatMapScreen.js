@@ -82,9 +82,11 @@ export default function HeatMapScreen() {
                 attributionControl: false
             }).setView([${centerLat}, ${centerLng}], 13);
 
-            // OpenStreetMap tiles
-            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19
+            // OpenStreetMap tiles via OSM France mirror (identical look, no blocking)
+            L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                subdomains: 'abc',
+                attribution: ''
             }).addTo(map);
 
             var vendors = ${JSON.stringify(vendors.map(v => ({

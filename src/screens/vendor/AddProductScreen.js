@@ -32,8 +32,12 @@ export default function AddProductScreen({ route, navigation }) {
     const [loading, setLoading] = useState(false);
     const [showCategoryModal, setShowCategoryModal] = useState(false);
     const [dynamicCategories, setDynamicCategories] = useState(DEFAULT_CATEGORIES);
+    const [pendingCategories, setPendingCategories] = useState([]);
+    const [showSuggestModal, setShowSuggestModal] = useState(false);
+    const [suggestInput, setSuggestInput] = useState('');
+    const [suggestLoading, setSuggestLoading] = useState(false);
 
-    // Fetch the admin-controlled categories from DB so vendors see updated lists
+    // Fetch the admin-controlled categories + this vendor's pending requests
     React.useEffect(() => {
         const fetchCategories = async () => {
             try {
@@ -42,12 +46,51 @@ export default function AddProductScreen({ route, navigation }) {
                     const activeNames = data.map(c => c.name);
                     setDynamicCategories([...new Set(activeNames)]);
                 }
+
+                // Also fetch this vendor's own pending category requests
+                if (user?.id) {
+                    const { data: pending } = await adminService.getMyPendingRequests(user.id);
+                    if (pending && pending.length > 0) {
+                        setPendingCategories(pending.map(p => p.name));
+                    }
+                }
             } catch (e) {
                 console.error('Error loading dynamic categories for vendor:', e);
             }
         };
         fetchCategories();
-    }, []);
+    }, [user]);
+
+    const handleSuggestCategory = async () => {
+        const catName = suggestInput.trim();
+        if (!catName) {
+            Alert.alert('Error', 'Please enter a category name.');
+            return;
+        }
+
+        setSuggestLoading(true);
+        try {
+            // Get vendor name
+            const { data: vendorData } = await vendorService.getVendorById(user.id);
+            const vendorName = vendorData?.shop_name || 'Unknown Vendor';
+
+            const { data, error } = await adminService.submitCategoryRequest(catName, user.id, vendorName);
+            if (error) {
+                Alert.alert('Error', error.message || 'Failed to submit category suggestion.');
+            } else {
+                // Add to local pending list so vendor can select it immediately
+                setPendingCategories(prev => [...prev, catName]);
+                setCategory(catName);
+                setShowSuggestModal(false);
+                setShowCategoryModal(false);
+                setSuggestInput('');
+                Alert.alert('Submitted!', `"${catName}" has been submitted for admin approval. You can use it now — it will show as (Pending) until approved.`);
+            }
+        } catch (e) {
+            Alert.alert('Error', 'Something went wrong. Please try again.');
+        }
+        setSuggestLoading(false);
+    };
 
     // Initialize images on mount if editing
     React.useEffect(() => {
@@ -229,9 +272,16 @@ export default function AddProductScreen({ route, navigation }) {
                         activeOpacity={0.8}
                         onPress={() => setShowCategoryModal(true)}
                     >
-                        <Text style={[styles.categoryText, !category && { color: Colors.gray400 }]}>
-                            {category || 'Select Category'}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text style={[styles.categoryText, !category && { color: Colors.gray400 }]}>
+                                {category || 'Select Category'}
+                            </Text>
+                            {category && pendingCategories.includes(category) && (
+                                <View style={styles.pendingBadge}>
+                                    <Text style={styles.pendingBadgeText}>Pending</Text>
+                                </View>
+                            )}
+                        </View>
                         <MaterialIcons name="keyboard-arrow-down" size={24} color={Colors.textMuted} />
                     </TouchableOpacity>
                 </View>
@@ -316,21 +366,108 @@ export default function AddProductScreen({ route, navigation }) {
                                 <MaterialIcons name="close" size={24} color={Colors.textMain} />
                             </TouchableOpacity>
                         </View>
-                        {dynamicCategories.map((cat) => (
+                        <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 400 }}>
+                            {dynamicCategories.map((cat) => (
+                                <TouchableOpacity
+                                    key={cat}
+                                    style={styles.catOption}
+                                    onPress={() => {
+                                        setCategory(cat);
+                                        setShowCategoryModal(false);
+                                    }}
+                                >
+                                    <Text style={[styles.catOptionText, category === cat && { color: Colors.primary, fontWeight: '700' }]}>
+                                        {cat}
+                                    </Text>
+                                    {category === cat && <MaterialIcons name="check" size={20} color={Colors.primary} />}
+                                </TouchableOpacity>
+                            ))}
+
+                            {/* Vendor's own pending categories */}
+                            {pendingCategories.length > 0 && (
+                                <View style={styles.pendingSeparator}>
+                                    <View style={styles.pendingLine} />
+                                    <Text style={styles.pendingSeparatorText}>Your Suggestions</Text>
+                                    <View style={styles.pendingLine} />
+                                </View>
+                            )}
+                            {pendingCategories.map((cat) => (
+                                <TouchableOpacity
+                                    key={`pending-${cat}`}
+                                    style={styles.catOption}
+                                    onPress={() => {
+                                        setCategory(cat);
+                                        setShowCategoryModal(false);
+                                    }}
+                                >
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <Text style={[styles.catOptionText, category === cat && { color: Colors.primary, fontWeight: '700' }]}>
+                                            {cat}
+                                        </Text>
+                                        <View style={styles.pendingBadge}>
+                                            <Text style={styles.pendingBadgeText}>Pending</Text>
+                                        </View>
+                                    </View>
+                                    {category === cat && <MaterialIcons name="check" size={20} color={Colors.primary} />}
+                                </TouchableOpacity>
+                            ))}
+
+                            {/* Suggest New Category Button */}
                             <TouchableOpacity
-                                key={cat}
-                                style={styles.catOption}
-                                onPress={() => {
-                                    setCategory(cat);
-                                    setShowCategoryModal(false);
-                                }}
+                                style={styles.suggestBtn}
+                                activeOpacity={0.7}
+                                onPress={() => setShowSuggestModal(true)}
                             >
-                                <Text style={[styles.catOptionText, category === cat && { color: Colors.primary, fontWeight: '700' }]}>
-                                    {cat}
-                                </Text>
-                                {category === cat && <MaterialIcons name="check" size={20} color={Colors.primary} />}
+                                <View style={styles.suggestIconWrap}>
+                                    <MaterialIcons name="add" size={20} color={Colors.primary} />
+                                </View>
+                                <Text style={styles.suggestBtnText}>Suggest New Category</Text>
                             </TouchableOpacity>
-                        ))}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Suggest Category Modal */}
+            <Modal
+                visible={showSuggestModal}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShowSuggestModal(false)}
+            >
+                <View style={styles.suggestModalOverlay}>
+                    <View style={styles.suggestModalContent}>
+                        <Text style={styles.suggestModalTitle}>Suggest New Category</Text>
+                        <Text style={styles.suggestModalSubtitle}>
+                            Your suggestion will be reviewed by admin. You can use it immediately — it will show as (Pending) until approved.
+                        </Text>
+                        <TextInput
+                            style={styles.suggestModalInput}
+                            placeholder="Enter category name"
+                            placeholderTextColor={Colors.gray400}
+                            value={suggestInput}
+                            onChangeText={setSuggestInput}
+                            autoFocus
+                        />
+                        <View style={styles.suggestModalActions}>
+                            <TouchableOpacity
+                                style={styles.suggestModalCancelBtn}
+                                onPress={() => { setShowSuggestModal(false); setSuggestInput(''); }}
+                            >
+                                <Text style={styles.suggestModalCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.suggestModalSubmitBtn, suggestLoading && { opacity: 0.7 }]}
+                                onPress={handleSuggestCategory}
+                                disabled={suggestLoading}
+                            >
+                                {suggestLoading ? (
+                                    <ActivityIndicator color={Colors.white} size="small" />
+                                ) : (
+                                    <Text style={styles.suggestModalSubmitText}>Submit</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
             </Modal>
@@ -585,5 +722,126 @@ const styles = StyleSheet.create({
     catOptionText: {
         fontSize: 16,
         color: Colors.textMain,
+    },
+
+    // Pending category badge
+    pendingBadge: {
+        backgroundColor: '#fef3c7',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 8,
+    },
+    pendingBadgeText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#b45309',
+    },
+
+    // Pending separator
+    pendingSeparator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: 12,
+        gap: 10,
+    },
+    pendingLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: Colors.gray200,
+    },
+    pendingSeparatorText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: Colors.gray400,
+    },
+
+    // Suggest new category button
+    suggestBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingVertical: 16,
+        marginTop: 4,
+    },
+    suggestIconWrap: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#ECFDF5',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    suggestBtnText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: Colors.primary,
+    },
+
+    // Suggest modal
+    suggestModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    suggestModalContent: {
+        width: '100%',
+        backgroundColor: Colors.white,
+        borderRadius: 16,
+        padding: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 8,
+    },
+    suggestModalTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: Colors.textMain,
+        marginBottom: 4,
+    },
+    suggestModalSubtitle: {
+        fontSize: 13,
+        color: Colors.gray500,
+        marginBottom: 20,
+        lineHeight: 18,
+    },
+    suggestModalInput: {
+        backgroundColor: Colors.gray100,
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        fontSize: 16,
+        color: Colors.textMain,
+        marginBottom: 24,
+    },
+    suggestModalActions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 12,
+    },
+    suggestModalCancelBtn: {
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 8,
+        backgroundColor: Colors.gray100,
+    },
+    suggestModalCancelText: {
+        color: Colors.textMain,
+        fontWeight: '600',
+        fontSize: 15,
+    },
+    suggestModalSubmitBtn: {
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 8,
+        backgroundColor: Colors.primary,
+    },
+    suggestModalSubmitText: {
+        color: Colors.white,
+        fontWeight: '700',
+        fontSize: 15,
     },
 });

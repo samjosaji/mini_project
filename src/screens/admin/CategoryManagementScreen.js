@@ -20,12 +20,19 @@ export default function CategoryManagementScreen({ navigation }) {
     const [modalType, setModalType] = useState('add'); // 'add' or 'edit'
     const [modalInput, setModalInput] = useState('');
     const [selectedCategory, setSelectedCategory] = useState(null);
+    const [pendingRequests, setPendingRequests] = useState([]);
 
     const loadCategories = useCallback(async () => {
         try {
             const { data } = await adminService.getCategories();
             if (data) {
                 setCategories(data);
+            }
+
+            // Also load pending category requests
+            const { data: pending } = await adminService.getPendingCategoryRequests();
+            if (pending) {
+                setPendingRequests(pending);
             }
         } catch (err) {
             console.error('Error loading categories:', err);
@@ -140,6 +147,50 @@ export default function CategoryManagementScreen({ navigation }) {
         return Colors.gray500;
     };
 
+    const handleApproveRequest = (request) => {
+        Alert.alert(
+            'Approve Category',
+            `Approve "${request.name}" as a new category? Products using this category will become visible to all customers.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Approve',
+                    onPress: async () => {
+                        const { error } = await adminService.approveCategoryRequest(request.id, request.name);
+                        if (error) {
+                            Alert.alert('Error', 'Failed to approve category.');
+                        } else {
+                            Alert.alert('Approved!', `"${request.name}" is now an active category.`);
+                            loadCategories();
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const handleRejectRequest = (request) => {
+        Alert.alert(
+            'Reject Category',
+            `Reject "${request.name}"? Products using this category will be moved to "Uncategorized".`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Reject',
+                    style: 'destructive',
+                    onPress: async () => {
+                        const { error } = await adminService.rejectCategoryRequest(request.id, request.name);
+                        if (error) {
+                            Alert.alert('Error', 'Failed to reject category.');
+                        } else {
+                            loadCategories();
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     if (loading) {
         return (
             <SafeAreaView style={styles.container}>
@@ -192,6 +243,46 @@ export default function CategoryManagementScreen({ navigation }) {
                 contentContainerStyle={styles.list}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
             >
+                {/* Pending Requests Section */}
+                {pendingRequests.length > 0 && (
+                    <View style={styles.pendingSection}>
+                        <View style={styles.pendingHeader}>
+                            <Text style={styles.pendingTitle}>PENDING REQUESTS</Text>
+                            <View style={styles.pendingCountBadge}>
+                                <Text style={styles.pendingCountText}>{pendingRequests.length} Pending</Text>
+                            </View>
+                        </View>
+                        {pendingRequests.map(req => (
+                            <View key={req.id} style={styles.pendingCard}>
+                                <View style={styles.pendingCardLeft}>
+                                    <View style={styles.pendingIconWrap}>
+                                        <MaterialIcons name="pending-actions" size={22} color="#b45309" />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.pendingCatName}>{req.name}</Text>
+                                        <Text style={styles.pendingVendorName}>Suggested by {req.vendor_name}</Text>
+                                    </View>
+                                </View>
+                                <View style={styles.pendingActions}>
+                                    <TouchableOpacity
+                                        style={styles.approveBtn}
+                                        onPress={() => handleApproveRequest(req)}
+                                    >
+                                        <MaterialIcons name="check" size={20} color={Colors.white} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.rejectBtn}
+                                        onPress={() => handleRejectRequest(req)}
+                                    >
+                                        <MaterialIcons name="close" size={20} color={Colors.white} />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+                )}
+
+                {/* Existing Categories */}
                 {filteredCategories.length === 0 ? (
                     <View style={styles.emptyWrap}>
                         <MaterialIcons name="category" size={48} color={Colors.gray300} />
@@ -343,4 +434,93 @@ const styles = StyleSheet.create({
     modalBtnCancelText: { color: Colors.textMain, fontWeight: '600', fontSize: 15 },
     modalBtnSubmit: { backgroundColor: Colors.primary },
     modalBtnSubmitText: { color: Colors.white, fontWeight: '700', fontSize: 15 },
+
+    // Pending requests styles
+    pendingSection: {
+        marginBottom: 20,
+    },
+    pendingHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+    },
+    pendingTitle: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#b45309',
+        letterSpacing: 1,
+    },
+    pendingCountBadge: {
+        backgroundColor: '#fef3c7',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    pendingCountText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#b45309',
+    },
+    pendingCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 14,
+        borderRadius: 16,
+        backgroundColor: '#fffbeb',
+        borderWidth: 1,
+        borderColor: '#fde68a',
+        marginBottom: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    pendingCardLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        flex: 1,
+    },
+    pendingIconWrap: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor: '#fef3c7',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    pendingCatName: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: Colors.textMain,
+    },
+    pendingVendorName: {
+        fontSize: 11,
+        color: Colors.gray500,
+        marginTop: 2,
+    },
+    pendingActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    approveBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#16a34a',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    rejectBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#ef4444',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
 });

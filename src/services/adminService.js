@@ -364,4 +364,125 @@ export const adminService = {
             return { isSuspended: false, error };
         }
     },
+
+    // ─── Category Requests (Vendor Suggestions) ─────────────
+    async submitCategoryRequest(name, vendorId, vendorName) {
+        try {
+            // Check if the category already exists in approved categories
+            const { data: existing } = await supabase
+                .from('categories')
+                .select('name')
+                .ilike('name', name);
+
+            if (existing && existing.length > 0) {
+                return { data: null, error: { message: 'This category already exists.' } };
+            }
+
+            // Check if a pending request with same name already exists
+            const { data: pendingExisting } = await supabase
+                .from('category_requests')
+                .select('name')
+                .ilike('name', name)
+                .eq('status', 'pending');
+
+            if (pendingExisting && pendingExisting.length > 0) {
+                return { data: null, error: { message: 'A request for this category is already pending.' } };
+            }
+
+            const { data, error } = await supabase
+                .from('category_requests')
+                .insert([{ name: name.trim(), requested_by: vendorId, vendor_name: vendorName || 'Unknown Vendor', status: 'pending' }])
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error submitting category request:', error);
+            return { data: null, error };
+        }
+    },
+
+    async getPendingCategoryRequests() {
+        try {
+            const { data, error } = await supabase
+                .from('category_requests')
+                .select('*')
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return { data: data || [], error: null };
+        } catch (error) {
+            console.error('Error fetching pending category requests:', error);
+            return { data: [], error };
+        }
+    },
+
+    async approveCategoryRequest(requestId, categoryName) {
+        try {
+            // 1. Add to the real categories table
+            const { error: addErr } = await supabase
+                .from('categories')
+                .insert([{ name: categoryName, icon: 'category' }]);
+
+            if (addErr) throw addErr;
+
+            // 2. Mark the request as approved
+            const { error: updateErr } = await supabase
+                .from('category_requests')
+                .update({ status: 'approved' })
+                .eq('id', requestId);
+
+            if (updateErr) throw updateErr;
+
+            return { data: true, error: null };
+        } catch (error) {
+            console.error('Error approving category request:', error);
+            return { data: null, error };
+        }
+    },
+
+    async rejectCategoryRequest(requestId, categoryName) {
+        try {
+            // 1. Mark the request as rejected
+            const { error: updateErr } = await supabase
+                .from('category_requests')
+                .update({ status: 'rejected' })
+                .eq('id', requestId);
+
+            if (updateErr) throw updateErr;
+
+            // 2. Move any products using this pending category to 'Uncategorized'
+            if (categoryName) {
+                await supabase
+                    .from('products')
+                    .update({ category: 'Uncategorized' })
+                    .eq('category', categoryName);
+            }
+
+            return { data: true, error: null };
+        } catch (error) {
+            console.error('Error rejecting category request:', error);
+            return { data: null, error };
+        }
+    },
+
+    async getMyPendingRequests(vendorId) {
+        try {
+            const { data, error } = await supabase
+                .from('category_requests')
+                .select('*')
+                .eq('requested_by', vendorId)
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return { data: data || [], error: null };
+        } catch (error) {
+            console.error('Error fetching my pending requests:', error);
+            return { data: [], error };
+        }
+    },
 };
+
