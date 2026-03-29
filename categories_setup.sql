@@ -33,7 +33,7 @@ CREATE POLICY "Anyone can delete categories." ON public.categories FOR DELETE US
 -- Insert default categories safely
 INSERT INTO public.categories (name, icon) VALUES
 ('Food', 'restaurant'),
-('Fruits', 'eco'),
+('Fruits', 'apple'),
 ('Vegetables', 'grass'),
 ('Craft', 'palette'),
 ('Bakery', 'breakfast-dining'),

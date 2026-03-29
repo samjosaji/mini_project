@@ -8,9 +8,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../theme';
 import { adminService } from '../../services/adminService';
 
-const FILTER_CHIPS = ['All', 'Food', 'Fruits', 'Craft', 'Vegetables', 'Bakery', 'Beverages'];
-
 export default function AdminVendorsScreen() {
+    const [filterChips, setFilterChips] = useState(['All', 'Food', 'Fruits', 'Craft', 'Vegetables', 'Bakery', 'Beverages']);
     const [vendors, setVendors] = useState([]);
     const [filteredVendors, setFilteredVendors] = useState([]);
     const [search, setSearch] = useState('');
@@ -23,6 +22,13 @@ export default function AdminVendorsScreen() {
         try {
             const { data } = await adminService.getAllVendorsForAdmin();
             setVendors(data || []);
+
+            // Dynamically load real categories from database to replace defaults
+            const { data: catData } = await adminService.getCategories();
+            if (catData && catData.length > 0) {
+                const names = catData.map(c => c.name);
+                setFilterChips(['All', ...names]);
+            }
         } catch (err) {
             console.error('Error loading vendors:', err);
         } finally {
@@ -39,9 +45,10 @@ export default function AdminVendorsScreen() {
     useEffect(() => {
         let result = vendors;
         if (selectedFilter !== 'All') {
-            result = result.filter((v) =>
-                (v.primaryCategory || '').toLowerCase() === selectedFilter.toLowerCase()
-            );
+            result = result.filter((v) => {
+                const cats = (v.categories || []).map(c => c.toLowerCase());
+                return cats.includes(selectedFilter.toLowerCase());
+            });
         }
         if (search.trim()) {
             const q = search.trim().toLowerCase();
@@ -129,26 +136,33 @@ export default function AdminVendorsScreen() {
             </View>
 
             {/* Filter Chips */}
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.chipRow}
-            >
-                {FILTER_CHIPS.map((chip) => (
-                    <TouchableOpacity
-                        key={chip}
-                        style={[styles.chip, selectedFilter === chip && styles.chipActive]}
-                        onPress={() => setSelectedFilter(chip)}
-                    >
-                        <Text style={[styles.chipText, selectedFilter === chip && styles.chipTextActive]}>
-                            {chip}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
+            <View>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.chipRow}
+                >
+                    {filterChips.map((chip, index) => (
+                        <TouchableOpacity
+                            key={chip}
+                            style={[
+                                styles.chip, 
+                                selectedFilter === chip && styles.chipActive,
+                                { marginRight: index === filterChips.length - 1 ? 0 : 8 }
+                            ]}
+                            onPress={() => setSelectedFilter(chip)}
+                        >
+                            <Text style={[styles.chipText, selectedFilter === chip && styles.chipTextActive]}>
+                                {chip}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
 
             {/* Vendor List */}
             <ScrollView
+                style={{ flex: 1 }}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.list}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
@@ -249,12 +263,13 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.gray200,
     },
     searchInput: { flex: 1, fontSize: 14, marginLeft: 8, marginRight: 14, color: Colors.textMain },
-    chipRow: { paddingHorizontal: 20, paddingBottom: 16, gap: 8 },
+    chipRow: { paddingHorizontal: 20, paddingBottom: 16 },
     chip: {
         paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20,
         backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.gray200,
+        height: 36, justifyContent: 'center', alignItems: 'center'
     },
-    chipActive: { backgroundColor: '#0a2e0a', borderColor: '#0a2e0a' },
+    chipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
     chipText: { fontSize: 13, fontWeight: '600', color: Colors.textMain },
     chipTextActive: { color: Colors.white },
     list: { paddingHorizontal: 20 },

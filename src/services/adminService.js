@@ -1,5 +1,46 @@
 import { supabase } from './supabase';
 
+const getAutoIconForCategory = (name) => {
+    const n = name.toLowerCase();
+    
+    // Food & Dining
+    if (n.includes('food') || n.includes('meal') || n.includes('restaurant')) return 'restaurant';
+    if (n.includes('fruit') || n.includes('apple') || n.includes('berry')) return 'apple';
+    if (n.includes('veg')) return 'grass';
+    if (n.includes('baker') || n.includes('bread') || n.includes('cake') || n.includes('sweet') || n.includes('dessert')) return 'bakery-dining';
+    if (n.includes('snack') || n.includes('fast')) return 'fastfood';
+    if (n.includes('meat') || n.includes('chicken') || n.includes('beef') || n.includes('fish')) return 'set-meal';
+    if (n.includes('cafe') || n.includes('coffee') || n.includes('tea')) return 'local-cafe';
+    if (n.includes('bev') || n.includes('drink') || n.includes('juice')) return 'local-bar';
+    if (n.includes('pizza')) return 'local-pizza';
+    if (n.includes('ice cream') || n.includes('gelato')) return 'icecream';
+
+    // Shopping & Items
+    if (n.includes('craft') || n.includes('art') || n.includes('handmade')) return 'palette';
+    if (n.includes('cloth') || n.includes('apparel') || n.includes('wear') || n.includes('fashion') || n.includes('garment')) return 'checkroom';
+    if (n.includes('electronics') || n.includes('tech') || n.includes('phone') || n.includes('computer') || n.includes('mobile')) return 'devices';
+    if (n.includes('book') || n.includes('read') || n.includes('stationery') || n.includes('paper')) return 'menu-book';
+    if (n.includes('beauty') || n.includes('cosmetic') || n.includes('makeup') || n.includes('hair')) return 'face';
+    if (n.includes('home') || n.includes('decor') || n.includes('furniture')) return 'home';
+    if (n.includes('toy') || n.includes('game') || n.includes('kid')) return 'toys';
+    if (n.includes('sport') || n.includes('fitness') || n.includes('gym')) return 'sports-soccer';
+    if (n.includes('gift') || n.includes('present')) return 'card-giftcard';
+    if (n.includes('pet') || n.includes('animal') || n.includes('dog') || n.includes('cat')) return 'pets';
+    if (n.includes('grocery') || n.includes('market') || n.includes('supermarket')) return 'local-grocery-store';
+    if (n.includes('medicine') || n.includes('health') || n.includes('pharmacy') || n.includes('drug')) return 'medical-services';
+    if (n.includes('flower') || n.includes('plant') || n.includes('nursery')) return 'local-florist';
+    if (n.includes('shoe') || n.includes('footwear')) return 'do-not-step';
+    if (n.includes('bag') || n.includes('luggage')) return 'luggage';
+    if (n.includes('jewel') || n.includes('ring') || n.includes('watch')) return 'diamond';
+    
+    // General / Miscellaneous
+    if (n.includes('service') || n.includes('repair')) return 'build';
+    if (n.includes('auto') || n.includes('car') || n.includes('vehicle')) return 'directions-car';
+    if (n.includes('hardware') || n.includes('tool')) return 'hardware';
+    
+    return 'category'; // Default fallback
+};
+
 export const adminService = {
     // ─── Dashboard Stats ─────────────
     async getDashboardStats() {
@@ -92,12 +133,14 @@ export const adminService = {
 
             if (error) throw error;
 
-            // Determine primary category from products
+            // Determine all categories from products
             const vendors = (data || []).map((v) => {
-                const categories = (v.products || []).map((p) => p.category).filter(Boolean);
-                const primaryCategory = categories.length > 0 ? categories[0] : 'General';
+                const productCategories = (v.products || []).map((p) => p.category).filter(Boolean);
+                const uniqueCategories = [...new Set(productCategories)];
+                const primaryCategory = uniqueCategories.length > 0 ? uniqueCategories[0] : 'General';
                 return {
                     ...v,
+                    categories: uniqueCategories,
                     primaryCategory,
                     status: v.is_suspended ? 'Suspended' : 'Active',
                 };
@@ -261,11 +304,12 @@ export const adminService = {
         }
     },
 
-    async addCategory(name, icon = 'category') {
+    async addCategory(name, icon = null) {
         try {
+            const resolvedIcon = icon || getAutoIconForCategory(name);
             const { data, error } = await supabase
                 .from('categories')
-                .insert([{ name, icon }])
+                .insert([{ name, icon: resolvedIcon }])
                 .select()
                 .single();
 
@@ -424,7 +468,7 @@ export const adminService = {
             // 1. Add to the real categories table
             const { error: addErr } = await supabase
                 .from('categories')
-                .insert([{ name: categoryName, icon: 'category' }]);
+                .insert([{ name: categoryName, icon: getAutoIconForCategory(categoryName) }]);
 
             if (addErr) throw addErr;
 
