@@ -51,7 +51,7 @@ export default function AdminSettingsScreen({ navigation }) {
                                 <Text style={styles.menuText}>App Version</Text>
                             </View>
                             <View style={styles.versionBadge}>
-                                <Text style={styles.versionText}>v2.4.0-stable</Text>
+                                <Text style={styles.versionText}>v1.0.0</Text>
                             </View>
                         </View>
 
@@ -95,7 +95,7 @@ export default function AdminSettingsScreen({ navigation }) {
 
                 {/* Footer Footer */}
                 <View style={styles.footer}>
-                    <Text style={styles.footerText}>VENDORA ADMIN ENGINE © 2024</Text>
+                    <Text style={styles.footerText}>VENDORA ADMIN ENGINE © {new Date().getFullYear()}</Text>
                 </View>
 
                 <View style={{ height: 100 }} />

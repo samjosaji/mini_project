@@ -9,6 +9,21 @@ import { supabase } from '../../services/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import InputField from '../../components/InputField';
 
+const getPasswordAge = (changedAt) => {
+    if (!changedAt) return 'Never changed';
+    const diff = Date.now() - new Date(changedAt).getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    const months = Math.floor(days / 30);
+
+    if (minutes < 1) return 'Last changed just now';
+    if (minutes < 60) return `Last changed ${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    if (hours < 24) return `Last changed ${hours} hour${hours > 1 ? 's' : ''} ago`;
+    if (days < 30) return `Last changed ${days} day${days > 1 ? 's' : ''} ago`;
+    return `Last changed ${months} month${months > 1 ? 's' : ''} ago`;
+};
+
 export default function CustomerProfileScreen({ navigation }) {
     const { user, profile, refreshProfile } = useAuth();
     const [firstName, setFirstName] = useState('');
@@ -68,9 +83,6 @@ export default function CustomerProfileScreen({ navigation }) {
                             source={{ uri: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=random&size=200` }}
                             style={styles.avatar}
                         />
-                        <View style={styles.cameraBtn}>
-                            <MaterialIcons name="photo-camera" size={16} color={Colors.white} />
-                        </View>
                     </View>
                     <Text style={styles.profileName}>{profile?.first_name} {profile?.last_name}</Text>
                     <Text style={styles.profileSub}>Customer since {profile?.created_at ? new Date(profile.created_at).getFullYear() : '2024'}</Text>
@@ -90,7 +102,7 @@ export default function CustomerProfileScreen({ navigation }) {
                     <View style={styles.securityRow}>
                         <View>
                             <Text style={styles.securityTitle}>Password</Text>
-                            <Text style={styles.securitySub}>Last changed 2 months ago</Text>
+                            <Text style={styles.securitySub}>{getPasswordAge(profile?.password_changed_at)}</Text>
                         </View>
                         <TouchableOpacity style={styles.updateBtn} onPress={() => navigation.getParent()?.navigate('ChangePassword')}>
                             <Text style={styles.updateBtnText}>Update</Text>

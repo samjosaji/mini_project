@@ -9,8 +9,10 @@ import { Colors } from '../../theme';
 import InputField from '../../components/InputField';
 import PrimaryButton from '../../components/PrimaryButton';
 import { supabase, supabaseUrl, supabaseAnonKey } from '../../services/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function ChangePasswordScreen({ navigation }) {
+    const { refreshProfile } = useAuth();
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -83,6 +85,14 @@ export default function ChangePasswordScreen({ navigation }) {
             if (updateError) {
                 Alert.alert('Error', updateError.message || 'Failed to update password.');
             } else {
+                // Record the password change timestamp in the users table
+                await supabase
+                    .from('users')
+                    .update({ password_changed_at: new Date().toISOString() })
+                    .eq('id', user.id);
+
+                await refreshProfile();
+
                 Alert.alert(
                     'Success',
                     'Your password has been updated successfully!',

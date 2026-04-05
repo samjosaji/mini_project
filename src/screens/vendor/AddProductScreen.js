@@ -12,6 +12,7 @@ import { productService } from '../../services/productService';
 import { vendorService } from '../../services/vendorService';
 import { storageService } from '../../services/storageService';
 import { adminService } from '../../services/adminService';
+import { notificationService } from '../../services/notificationService';
 
 const DEFAULT_CATEGORIES = ['Food', 'Craft', 'Vegetables', 'Fruits'];
 

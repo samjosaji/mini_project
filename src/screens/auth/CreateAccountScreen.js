@@ -33,6 +33,24 @@ export default function CreateAccountScreen({ navigation }) {
         }
 
         setLoading(true);
+
+        try {
+            // Check if user already exists
+            const { data: existingUser, error: checkError } = await supabase
+                .from('users')
+                .select('email')
+                .ilike('email', email)
+                .maybeSingle();
+
+            if (existingUser) {
+                Alert.alert('Account Exists', 'This email is already associated with an account. Please log in.');
+                setLoading(false);
+                return;
+            }
+        } catch (err) {
+            console.log('Error checking existing user:', err);
+        }
+
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
