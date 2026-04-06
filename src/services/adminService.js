@@ -528,5 +528,94 @@ export const adminService = {
             return { data: [], error };
         }
     },
-};
 
+    // ─── Vendor Reports ─────────────
+
+    /**
+     * Customer submits a report against a vendor
+     */
+    async submitVendorReport({ vendor_id, customer_id, reason, description }) {
+        try {
+            const { data, error } = await supabase
+                .from('vendor_reports')
+                .insert([{ vendor_id, customer_id, reason, description: description || null }])
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error submitting vendor report:', error);
+            return { data: null, error };
+        }
+    },
+
+    /**
+     * Admin fetches all vendor reports
+     */
+    async getAllVendorReports(statusFilter = null) {
+        try {
+            let query = supabase
+                .from('vendor_reports')
+                .select(`
+                    *,
+                    vendor:vendors(id, shop_name, cover_image_url, is_suspended),
+                    customer:users(id, first_name, last_name, email)
+                `)
+                .order('created_at', { ascending: false });
+
+            if (statusFilter) {
+                query = query.eq('status', statusFilter);
+            }
+
+            const { data, error } = await query;
+
+            if (error) throw error;
+            return { data: data || [], error: null };
+        } catch (error) {
+            console.error('Error fetching vendor reports:', error);
+            return { data: [], error };
+        }
+    },
+
+    /**
+     * Admin updates report status (reviewed / dismissed)
+     */
+    async updateReportStatus(reportId, status, adminNotes = null) {
+        try {
+            const updates = { status };
+            if (adminNotes !== null) updates.admin_notes = adminNotes;
+
+            const { data, error } = await supabase
+                .from('vendor_reports')
+                .update(updates)
+                .eq('id', reportId)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return { data, error: null };
+        } catch (error) {
+            console.error('Error updating report status:', error);
+            return { data: null, error };
+        }
+    },
+
+    /**
+     * Get count of pending reports (for dashboard badge)
+     */
+    async getPendingReportsCount() {
+        try {
+            const { data, error } = await supabase
+                .from('vendor_reports')
+                .select('id')
+                .eq('status', 'pending');
+
+            if (error) throw error;
+            return { count: (data || []).length, error: null };
+        } catch (error) {
+            console.error('Error fetching pending reports count:', error);
+            return { count: 0, error };
+        }
+    },
+};

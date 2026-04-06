@@ -26,9 +26,18 @@ export default function CreateAccountScreen({ navigation }) {
     const [accountType, setAccountType] = useState('Customer');
     const [loading, setLoading] = useState(false);
 
+    // Strip numbers from name input
+    const handleFirstNameChange = (text) => setFirstName(text.replace(/[0-9]/g, ''));
+    const handleLastNameChange = (text) => setLastName(text.replace(/[0-9]/g, ''));
+
     const handleSignup = async () => {
         if (!email || !password || !firstName || !lastName || (accountType === 'Vendor' && !shopName)) {
             Alert.alert('Error', 'Please fill in all required fields.');
+            return;
+        }
+
+        if (/[0-9]/.test(firstName) || /[0-9]/.test(lastName)) {
+            Alert.alert('Invalid Name', 'First name and last name should not contain numbers.');
             return;
         }
 
@@ -113,11 +122,11 @@ export default function CreateAccountScreen({ navigation }) {
                     <View style={styles.form}>
                         <View style={styles.nameRow}>
                             <View style={{ flex: 1 }}>
-                                <InputField label="First Name" placeholder="Enter first name" value={firstName} onChangeText={setFirstName} />
+                                <InputField label="First Name" placeholder="Enter first name" value={firstName} onChangeText={handleFirstNameChange} />
                             </View>
                             <View style={{ width: 16 }} />
                             <View style={{ flex: 1 }}>
-                                <InputField label="Last Name" placeholder="Enter last name" value={lastName} onChangeText={setLastName} />
+                                <InputField label="Last Name" placeholder="Enter last name" value={lastName} onChangeText={handleLastNameChange} />
                             </View>
                         </View>
 

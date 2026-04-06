@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, FlatList, ActivityIndicator, Dimensions
+    View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, FlatList,
+    ActivityIndicator, Dimensions, Modal, TextInput, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -12,6 +13,7 @@ import { notificationService } from '../../services/notificationService';
 import { vendorService } from '../../services/vendorService';
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { adminService } from '../../services/adminService';
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = (width - 48) / 2;
@@ -26,6 +28,19 @@ export default function VendorDetailScreen({ navigation, route }) {
     const [favoriteLoading, setFavoriteLoading] = useState(false);
     const [liveVendor, setLiveVendor] = useState(null);
     const locationRefreshInterval = useRef(null);
+    const [reportModalVisible, setReportModalVisible] = useState(false);
+    const [reportReason, setReportReason] = useState('');
+    const [reportDescription, setReportDescription] = useState('');
+    const [reportSubmitting, setReportSubmitting] = useState(false);
+
+    const REPORT_REASONS = [
+        'Misleading product information',
+        'Rude or inappropriate behavior',
+        'Selling prohibited items',
+        'Hygiene or safety concern',
+        'Fraudulent activity',
+        'Other',
+    ];
 
     // Build the images array representing the vendor profile images
     let vendorImages = [];
@@ -98,6 +113,35 @@ export default function VendorDetailScreen({ navigation, route }) {
             setProducts(data);
         }
         setLoading(false);
+    };
+
+    const handleSubmitReport = async () => {
+        if (!reportReason) {
+            Alert.alert('Select a Reason', 'Please select a reason for reporting this vendor.');
+            return;
+        }
+        if (!user) {
+            Alert.alert('Login Required', 'Please log in to report a vendor.');
+            return;
+        }
+        setReportSubmitting(true);
+        try {
+            const { error } = await adminService.submitVendorReport({
+                vendor_id: vendor.id,
+                customer_id: user.id,
+                reason: reportReason,
+                description: reportDescription.trim(),
+            });
+            if (error) throw error;
+            Alert.alert('Report Submitted', 'Thank you. Your report has been submitted and will be reviewed by our team.');
+            setReportModalVisible(false);
+            setReportReason('');
+            setReportDescription('');
+        } catch (err) {
+            Alert.alert('Error', 'Failed to submit report. Please try again.');
+        } finally {
+            setReportSubmitting(false);
+        }
     };
 
     // Use live-fetched vendor data for location if available
@@ -246,8 +290,86 @@ export default function VendorDetailScreen({ navigation, route }) {
                         </View>
                     )}
                 </View>
+
+                {/* Report Vendor Button */}
+                <View style={styles.reportSection}>
+                    <TouchableOpacity
+                        style={styles.reportBtn}
+                        onPress={() => setReportModalVisible(true)}
+                    >
+                        <MaterialIcons name="flag" size={18} color="#dc2626" />
+                        <Text style={styles.reportBtnText}>Report this Vendor</Text>
+                    </TouchableOpacity>
+                </View>
+
                 <View style={{ height: 100 }} />
             </ScrollView>
+
+            {/* Report Modal */}
+            <Modal
+                visible={reportModalVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setReportModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Report Vendor</Text>
+                            <TouchableOpacity onPress={() => setReportModalVisible(false)}>
+                                <MaterialIcons name="close" size={24} color={Colors.textMain} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={styles.modalSubtitle}>Why are you reporting {vendor?.shop_name}?</Text>
+
+                        <ScrollView style={styles.reasonsList} showsVerticalScrollIndicator={false}>
+                            {REPORT_REASONS.map((reason) => (
+                                <TouchableOpacity
+                                    key={reason}
+                                    style={[
+                                        styles.reasonItem,
+                                        reportReason === reason && styles.reasonItemActive,
+                                    ]}
+                                    onPress={() => setReportReason(reason)}
+                                >
+                                    <MaterialIcons
+                                        name={reportReason === reason ? 'radio-button-checked' : 'radio-button-unchecked'}
+                                        size={20}
+                                        color={reportReason === reason ? Colors.primary : Colors.gray400}
+                                    />
+                                    <Text style={[
+                                        styles.reasonText,
+                                        reportReason === reason && styles.reasonTextActive,
+                                    ]}>{reason}</Text>
+                                </TouchableOpacity>
+                            ))}
+
+                            <Text style={styles.detailsLabel}>Additional Details <Text style={styles.optionalText}>(Optional)</Text></Text>
+                            <TextInput
+                                style={styles.detailsInput}
+                                placeholder="Describe what happened..."
+                                placeholderTextColor={Colors.gray400}
+                                multiline
+                                maxLength={500}
+                                value={reportDescription}
+                                onChangeText={setReportDescription}
+                                textAlignVertical="top"
+                            />
+                        </ScrollView>
+
+                        <TouchableOpacity
+                            style={[styles.submitReportBtn, reportSubmitting && { opacity: 0.7 }]}
+                            onPress={handleSubmitReport}
+                            disabled={reportSubmitting}
+                        >
+                            <Text style={styles.submitReportBtnText}>
+                                {reportSubmitting ? 'Submitting...' : 'Submit Report'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -316,4 +438,54 @@ const styles = StyleSheet.create({
     stockText: { fontSize: 10, color: Colors.textMuted },
     emptyWrap: { alignItems: 'center', justifyContent: 'center', paddingTop: 40 },
     emptyText: { fontSize: 14, color: Colors.gray400, marginTop: 12, textAlign: 'center' },
+
+    /* Report Vendor */
+    reportSection: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
+    reportBtn: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+        paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: '#fecaca',
+        backgroundColor: Colors.white,
+    },
+    reportBtnText: { fontSize: 14, fontWeight: '600', color: '#dc2626' },
+
+    /* Report Modal */
+    modalOverlay: {
+        flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: Colors.white, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+        paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32,
+        maxHeight: '80%',
+    },
+    modalHeader: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+        marginBottom: 4,
+    },
+    modalTitle: { fontSize: 20, fontWeight: '700', color: Colors.textMain },
+    modalSubtitle: { fontSize: 14, color: Colors.textMuted, marginBottom: 16 },
+    reasonsList: { marginBottom: 16 },
+    reasonItem: {
+        flexDirection: 'row', alignItems: 'center', gap: 12,
+        paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12,
+        borderWidth: 1, borderColor: Colors.gray100, marginBottom: 8,
+        backgroundColor: Colors.white,
+    },
+    reasonItemActive: {
+        borderColor: Colors.primary, backgroundColor: '#f0fdf4',
+    },
+    reasonText: { fontSize: 14, fontWeight: '500', color: Colors.textMain },
+    reasonTextActive: { fontWeight: '600', color: Colors.primary },
+    detailsLabel: { fontSize: 14, fontWeight: '600', color: Colors.textMain, marginTop: 8, marginBottom: 8 },
+    optionalText: { fontSize: 12, fontWeight: '400', color: Colors.gray400 },
+    detailsInput: {
+        backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, minHeight: 100,
+        fontSize: 14, color: Colors.textMain, borderWidth: 1, borderColor: Colors.gray200,
+        marginBottom: 8,
+    },
+    submitReportBtn: {
+        backgroundColor: '#dc2626', paddingVertical: 16, borderRadius: 14,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    submitReportBtnText: { fontSize: 16, fontWeight: '700', color: Colors.white },
 });

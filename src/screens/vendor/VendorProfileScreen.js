@@ -17,6 +17,9 @@ export default function VendorProfileScreen({ navigation }) {
     const { user } = useAuth();
 
     const [fullName, setFullName] = useState('');
+
+    // Strip numbers from name input
+    const handleFullNameChange = (text) => setFullName(text.replace(/[0-9]/g, ''));
     const [shopName, setShopName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
@@ -103,6 +106,11 @@ export default function VendorProfileScreen({ navigation }) {
     const handleSave = async () => {
         if (!fullName || !shopName) {
             Alert.alert('Missing Fields', 'Please fill out your name and shop name.');
+            return;
+        }
+
+        if (/[0-9]/.test(fullName)) {
+            Alert.alert('Invalid Name', 'Name should not contain numbers.');
             return;
         }
 
@@ -225,7 +233,7 @@ export default function VendorProfileScreen({ navigation }) {
                 {/* Personal Info */}
                 <View style={styles.section}>
                     <Text style={styles.sectionLabel}>PERSONAL INFORMATION</Text>
-                    <InputField label="Full Name" value={fullName} onChangeText={setFullName} icon="person" />
+                    <InputField label="Full Name" value={fullName} onChangeText={handleFullNameChange} icon="person" />
                     <InputField label="Shop Name" value={shopName} onChangeText={setShopName} icon="storefront" />
                     <InputField
                         label="Email Address"

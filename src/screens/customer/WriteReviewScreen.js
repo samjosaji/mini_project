@@ -41,17 +41,14 @@ export default function WriteReviewScreen({ navigation, route }) {
             return;
         }
 
-        if (!reviewText.trim()) {
-            alert('Please write a comment for your review');
-            return;
-        }
+
 
         setLoading(true);
         try {
             if (isEditing) {
                 const { error } = await reviewService.updateReview(existingReview.id, {
                     rating,
-                    comment: reviewText.trim()
+                    comment: reviewText.trim() || null
                 });
                 if (error) throw error;
                 alert('Your review has been updated!');
@@ -60,7 +57,7 @@ export default function WriteReviewScreen({ navigation, route }) {
                     product_id: product.id,
                     customer_id: user.id,
                     rating,
-                    comment: reviewText.trim()
+                    comment: reviewText.trim() || null
                 });
                 if (error) throw error;
                 alert('Thank you! Your review has been submitted.');
@@ -126,7 +123,7 @@ export default function WriteReviewScreen({ navigation, route }) {
 
                     {/* Review Text Area */}
                     <View style={styles.inputSection}>
-                        <Text style={styles.sectionLabel}>Your Review</Text>
+                        <Text style={styles.sectionLabel}>Your Review <Text style={styles.optionalLabel}>(Optional)</Text></Text>
                         <View style={styles.textAreaContainer}>
                             <TextInput
                                 style={styles.textArea}
@@ -262,6 +259,11 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: Colors.textMain,
         marginBottom: 12,
+    },
+    optionalLabel: {
+        fontSize: 12,
+        fontWeight: '400',
+        color: Colors.gray400,
     },
     textAreaContainer: {
         position: 'relative',

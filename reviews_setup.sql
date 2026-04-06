@@ -40,10 +40,10 @@ BEGIN
     WHERE id = NEW.product_id;
 
     -- Update Vendor stats
-    -- Note: Vendor rating is the average of all their products' ratings
+    -- Note: Vendor rating is the average of all their REVIEWED products' ratings (excludes unreviewed products)
     UPDATE public.vendors
     SET 
-        rating = (SELECT COALESCE(AVG(rating), 0) FROM public.products WHERE vendor_id = v_vendor_id),
+        rating = (SELECT COALESCE(AVG(rating), 0) FROM public.products WHERE vendor_id = v_vendor_id AND reviews_count > 0),
         reviews_count = (SELECT COALESCE(SUM(reviews_count), 0) FROM public.products WHERE vendor_id = v_vendor_id)
     WHERE id = v_vendor_id;
 

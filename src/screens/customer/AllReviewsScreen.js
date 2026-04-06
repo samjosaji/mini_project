@@ -76,7 +76,9 @@ function ReviewCard({ review, showProductName, currentUserId, onEdit }) {
                 <StarRow rating={review.rating} size={16} />
             </View>
 
-            <Text style={styles.reviewText}>{review.comment}</Text>
+            {review.comment ? (
+                <Text style={styles.reviewText}>{review.comment}</Text>
+            ) : null}
         </View>
     );
 }

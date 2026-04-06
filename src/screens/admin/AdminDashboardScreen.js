@@ -8,7 +8,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../theme';
 import { adminService } from '../../services/adminService';
 
-export default function AdminDashboardScreen() {
+export default function AdminDashboardScreen({ navigation }) {
     const [stats, setStats] = useState({
         totalVendors: 0,
         totalCustomers: 0,
@@ -18,16 +18,19 @@ export default function AdminDashboardScreen() {
     const [activities, setActivities] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [pendingReports, setPendingReports] = useState(0);
 
     const loadData = useCallback(async () => {
         try {
-            const [statsResult, activitiesResult] = await Promise.all([
+            const [statsResult, activitiesResult, reportsResult] = await Promise.all([
                 adminService.getDashboardStats(),
                 adminService.getRecentActivities(6),
+                adminService.getPendingReportsCount(),
             ]);
 
             if (statsResult.data) setStats(statsResult.data);
             if (activitiesResult.data) setActivities(activitiesResult.data);
+            if (reportsResult) setPendingReports(reportsResult.count || 0);
         } catch (err) {
             console.error('Dashboard load error:', err);
         } finally {
@@ -126,6 +129,35 @@ export default function AdminDashboardScreen() {
                         </View>
                     </View>
                 </View>
+
+                {/* Vendor Reports Quick Access */}
+                <TouchableOpacity
+                    style={styles.reportsCard}
+                    activeOpacity={0.8}
+                    onPress={() => navigation.navigate('AdminReports')}
+                >
+                    <View style={styles.reportsCardLeft}>
+                        <View style={styles.reportsIconWrap}>
+                            <MaterialIcons name="flag" size={24} color="#ea580c" />
+                        </View>
+                        <View>
+                            <Text style={styles.reportsCardTitle}>Vendor Reports</Text>
+                            <Text style={styles.reportsCardSub}>
+                                {pendingReports > 0
+                                    ? `${pendingReports} pending report${pendingReports > 1 ? 's' : ''} to review`
+                                    : 'No pending reports'}
+                            </Text>
+                        </View>
+                    </View>
+                    <View style={styles.reportsCardRight}>
+                        {pendingReports > 0 && (
+                            <View style={styles.reportsCountBadge}>
+                                <Text style={styles.reportsCountText}>{pendingReports}</Text>
+                            </View>
+                        )}
+                        <MaterialIcons name="chevron-right" size={22} color={Colors.gray400} />
+                    </View>
+                </TouchableOpacity>
 
                 {/* Recent Activities */}
                 <View style={styles.activitySection}>
@@ -240,4 +272,28 @@ const styles = StyleSheet.create({
     statusBadgeTextSuspended: { color: '#dc2626' },
     emptyWrap: { alignItems: 'center', paddingVertical: 40 },
     emptyText: { fontSize: 14, color: Colors.gray400, marginTop: 8 },
+
+    /* Reports Card */
+    reportsCard: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        marginHorizontal: 20, marginTop: 20, padding: 16,
+        backgroundColor: Colors.white, borderRadius: 16,
+        borderWidth: 1, borderColor: Colors.gray100,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04, shadowRadius: 4, elevation: 2,
+    },
+    reportsCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
+    reportsIconWrap: {
+        width: 44, height: 44, borderRadius: 12, backgroundColor: '#fff7ed',
+        alignItems: 'center', justifyContent: 'center',
+    },
+    reportsCardTitle: { fontSize: 15, fontWeight: '700', color: Colors.textMain },
+    reportsCardSub: { fontSize: 12, color: Colors.gray500, marginTop: 2 },
+    reportsCardRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    reportsCountBadge: {
+        backgroundColor: '#dc2626', borderRadius: 10,
+        paddingHorizontal: 8, paddingVertical: 2, minWidth: 22,
+        alignItems: 'center',
+    },
+    reportsCountText: { fontSize: 11, fontWeight: '700', color: Colors.white },
 });

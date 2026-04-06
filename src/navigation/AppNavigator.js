@@ -41,6 +41,7 @@ import AdminVendorsScreen from '../screens/admin/AdminVendorsScreen';
 import AdminUsersScreen from '../screens/admin/AdminUsersScreen';
 import AdminSettingsScreen from '../screens/admin/AdminSettingsScreen';
 import CategoryManagementScreen from '../screens/admin/CategoryManagementScreen';
+import AdminReportsScreen from '../screens/admin/AdminReportsScreen';
 
 // Shared Screens
 import ChangePasswordScreen from '../screens/shared/ChangePasswordScreen';
@@ -250,6 +251,7 @@ export default function AppNavigator() {
                             <>
                                 <Stack.Screen name="AdminTabs" component={AdminTabs} />
                                 <Stack.Screen name="CategoryManagement" component={CategoryManagementScreen} />
+                                <Stack.Screen name="AdminReports" component={AdminReportsScreen} />
                             </>
                         ) : userRole === 'vendor' ? (
                             <>

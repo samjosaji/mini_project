@@ -144,6 +144,39 @@ export default function ExploreScreen({ navigation }) {
         return ratingWeight + favWeight + viewWeight;
     };
 
+    // Helper function to calculate a "featured score" for an item
+    // Featured Today = what's new, nearby, and good right now
+    const getFeaturedScore = (item) => {
+        const now = new Date();
+
+        // Freshness: how recently was the product added/updated (max 30 pts)
+        const updatedAt = new Date(item.updated_at || item.created_at || now);
+        const hoursAgo = (now - updatedAt) / (1000 * 60 * 60);
+        const freshness = hoursAgo <= 24 ? 1.0 : hoursAgo <= 48 ? 0.5 : 0.1;
+
+        // Proximity: distance from customer to vendor (max 25 pts)
+        const distKm = getDistanceValue(item.vendors);
+        const proximity = distKm <= 1 ? 1.0 : distKm <= 3 ? 0.7 : distKm <= 5 ? 0.4 : distKm <= 10 ? 0.2 : 0.1;
+
+        // Rating (max 50 pts)
+        const rating = parseFloat(item.rating || 0);
+
+        // Favorite count (2 pts each)
+        const favCount = item.favorite_count || 0;
+
+        // Availability: in stock vs sold out (max 15 pts)
+        const available = item.is_available !== false ? 1 : 0;
+
+        // Vendor is currently open (max 10 pts)
+        const vendorOpen = item.vendors?.is_open ? 1 : 0;
+
+        // Vendor is live — location updated in the last 30 min (max 5 pts)
+        const lastUpdate = item.vendors?.last_location_update ? new Date(item.vendors.last_location_update) : null;
+        const vendorLive = lastUpdate && ((now - lastUpdate) / (1000 * 60) <= 30) ? 1 : 0;
+
+        return (freshness * 30) + (proximity * 25) + (rating * 10) + (favCount * 2) + (available * 15) + (vendorOpen * 10) + (vendorLive * 5);
+    };
+
     // Filter items by selected category (case-insensitive) AND search query
     // Also ensuring no products from deleted categories appear (by confirming their category is in dynamicCategories)
     const categoryProducts = useMemo(() => products.filter(item => {
@@ -163,9 +196,9 @@ export default function ExploreScreen({ navigation }) {
         return matchesCategory && matchesSearch;
     }), [products, selectedCategory, searchQuery, dynamicCategories]);
 
-    // Distance sorting (Used for Featured)
-    const sortedProductsDesc = useMemo(() => [...categoryProducts].sort(
-        (a, b) => getDistanceValue(a.vendors) - getDistanceValue(b.vendors)
+    // Featured scoring (freshness + proximity + quality + availability)
+    const sortedByFeatured = useMemo(() => [...categoryProducts].sort(
+        (a, b) => getFeaturedScore(b) - getFeaturedScore(a)
     ), [categoryProducts, customerLocation]);
 
     // Trending sorting (Used for Trending)
@@ -173,7 +206,7 @@ export default function ExploreScreen({ navigation }) {
         (a, b) => getTrendScore(b) - getTrendScore(a)
     ), [categoryProducts]);
 
-    const filteredFeatured = useMemo(() => sortedProductsDesc.filter((item) => item.is_featured || true).slice(0, 5), [sortedProductsDesc]);
+    const filteredFeatured = useMemo(() => sortedByFeatured.slice(0, 5), [sortedByFeatured]);
     const filteredTrending = useMemo(() => sortedByTrending.slice(0, 10), [sortedByTrending]);
 
     const getDistance = (vendor) => {

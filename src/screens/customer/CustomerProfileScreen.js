@@ -29,6 +29,10 @@ export default function CustomerProfileScreen({ navigation }) {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
+
+    // Strip numbers from name input
+    const handleFirstNameChange = (text) => setFirstName(text.replace(/[0-9]/g, ''));
+    const handleLastNameChange = (text) => setLastName(text.replace(/[0-9]/g, ''));
     const [loading, setLoading] = useState(false);
 
     React.useEffect(() => {
@@ -41,6 +45,12 @@ export default function CustomerProfileScreen({ navigation }) {
 
     const handleSave = async () => {
         if (!user) return;
+
+        if (/[0-9]/.test(firstName) || /[0-9]/.test(lastName)) {
+            alert('First name and last name should not contain numbers.');
+            return;
+        }
+
         setLoading(true);
         try {
             const { error } = await supabase
@@ -91,8 +101,8 @@ export default function CustomerProfileScreen({ navigation }) {
                 {/* Personal Information */}
                 <View style={styles.section}>
                     <Text style={styles.sectionLabel}>PERSONAL INFORMATION</Text>
-                    <InputField label="First Name" value={firstName} onChangeText={setFirstName} icon="person" placeholder="First name" />
-                    <InputField label="Last Name" value={lastName} onChangeText={setLastName} icon="person" placeholder="Last name" />
+                    <InputField label="First Name" value={firstName} onChangeText={handleFirstNameChange} icon="person" placeholder="First name" />
+                    <InputField label="Last Name" value={lastName} onChangeText={handleLastNameChange} icon="person" placeholder="Last name" />
                     <InputField label="Email Address" value={email} editable={false} icon="email" placeholder="Email address" keyboardType="email-address" />
                 </View>
 

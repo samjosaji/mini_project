@@ -396,7 +396,9 @@ export default function ProductDetailScreen({ navigation, route }) {
                                     </Text>
                                 </View>
                                 <StarRow rating={review.rating} size={13} />
-                                <Text style={styles.reviewText}>{review.comment}</Text>
+                                {review.comment ? (
+                                    <Text style={styles.reviewText}>{review.comment}</Text>
+                                ) : null}
                             </View>
                         ))}
                         {reviews.length > 0 && (
