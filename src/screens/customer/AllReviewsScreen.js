@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    Image, StatusBar, FlatList, ActivityIndicator
+    Image, StatusBar, FlatList, ActivityIndicator, Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -35,7 +35,7 @@ function StarRow({ rating, size = 14, color = '#FFB300' }) {
 }
 
 // ── ReviewCard ──────────────────────────────
-function ReviewCard({ review, showProductName, currentUserId, onEdit }) {
+function ReviewCard({ review, showProductName, currentUserId, onEdit, onDelete }) {
     const customerName = `${review.customer?.first_name || 'User'} ${review.customer?.last_name || ''}`;
     const dateLabel = new Date(review.created_at).toLocaleDateString(undefined, {
         month: 'short', day: 'numeric', year: 'numeric'
@@ -55,14 +55,23 @@ function ReviewCard({ review, showProductName, currentUserId, onEdit }) {
                     </View>
                 </View>
                 {isOwnReview && (
-                    <TouchableOpacity
-                        style={styles.editBtn}
-                        onPress={() => onEdit && onEdit(review)}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                        <MaterialIcons name="edit" size={16} color={Colors.primary} />
-                        <Text style={styles.editBtnText}>Edit</Text>
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity
+                            style={styles.editBtn}
+                            onPress={() => onEdit && onEdit(review)}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            <MaterialIcons name="edit" size={16} color={Colors.primary} />
+                            <Text style={styles.editBtnText}>Edit</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.deleteBtn}
+                            onPress={() => onDelete && onDelete(review)}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            <MaterialIcons name="delete" size={16} color="#dc2626" />
+                        </TouchableOpacity>
+                    </View>
                 )}
             </View>
 
@@ -249,6 +258,29 @@ export default function AllReviewsScreen({ navigation, route }) {
                                         product: product || rev.product,
                                         existingReview: rev
                                     });
+                                }}
+                                onDelete={(rev) => {
+                                    Alert.alert(
+                                        'Delete Review',
+                                        'Are you sure you want to delete this review?',
+                                        [
+                                            { text: 'Cancel', style: 'cancel' },
+                                            {
+                                                text: 'Delete',
+                                                style: 'destructive',
+                                                onPress: async () => {
+                                                    const { error } = await reviewService.deleteReview(rev.id);
+                                                    if (!error) {
+                                                        setReviews(prev => prev.filter(r => r.id !== rev.id));
+                                                        // Also re-fetch the summary so ratings update
+                                                        fetchData();
+                                                    } else {
+                                                        Alert.alert('Error', 'Failed to delete review.');
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    );
                                 }}
                             />
                         ))}
@@ -483,5 +515,16 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '600',
         color: Colors.primary,
+    },
+    deleteBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 6,
+        paddingVertical: 5,
+        borderRadius: 8,
+        backgroundColor: '#fef2f2',
+        borderWidth: 1,
+        borderColor: '#fecaca',
     },
 });

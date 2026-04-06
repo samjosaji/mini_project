@@ -23,6 +23,9 @@ CREATE POLICY "Customers can insert their own reviews." ON public.reviews
 CREATE POLICY "Customers can update their own reviews." ON public.reviews 
   FOR UPDATE USING (auth.uid() = customer_id);
 
+CREATE POLICY "Customers can delete their own reviews." ON public.reviews 
+  FOR DELETE USING (auth.uid() = customer_id);
+
 -- 3. Trigger to automatically update product/vendor rating and counts
 CREATE OR REPLACE FUNCTION public.update_ratings_on_review()
 RETURNS TRIGGER AS $$

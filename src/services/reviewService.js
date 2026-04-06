@@ -88,6 +88,24 @@ export const reviewService = {
     /**
      * Get rating summary for a product
      */
+    async deleteReview(reviewId) {
+        try {
+            const { error } = await supabase
+                .from('reviews')
+                .delete()
+                .eq('id', reviewId);
+
+            if (error) throw error;
+            return { error: null };
+        } catch (error) {
+            console.error('Error deleting review:', error);
+            return { error };
+        }
+    },
+
+    /**
+     * Get rating summary for a product
+     */
     async getRatingSummary(productId) {
         try {
             const { data, error } = await supabase
