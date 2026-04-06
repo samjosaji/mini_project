@@ -104,7 +104,7 @@ export default function VendorProfileScreen({ navigation }) {
     };
 
     const handleSave = async () => {
-        if (!fullName || !shopName) {
+        if (!fullName.trim() || !shopName.trim()) {
             Alert.alert('Missing Fields', 'Please fill out your name and shop name.');
             return;
         }

@@ -46,6 +46,11 @@ export default function CustomerProfileScreen({ navigation }) {
     const handleSave = async () => {
         if (!user) return;
 
+        if (!firstName.trim()) {
+            alert('First name cannot be empty.');
+            return;
+        }
+
         if (/[0-9]/.test(firstName) || /[0-9]/.test(lastName)) {
             alert('First name and last name should not contain numbers.');
             return;

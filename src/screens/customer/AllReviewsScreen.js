@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    Image, StatusBar, FlatList, ActivityIndicator, Alert
+    Image, StatusBar, FlatList, ActivityIndicator, Alert, RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -36,7 +36,9 @@ function StarRow({ rating, size = 14, color = '#FFB300' }) {
 
 // ── ReviewCard ──────────────────────────────
 function ReviewCard({ review, showProductName, currentUserId, onEdit, onDelete }) {
-    const customerName = `${review.customer?.first_name || 'User'} ${review.customer?.last_name || ''}`;
+    const firstName = review.customer?.first_name?.trim();
+    const lastName = review.customer?.last_name?.trim();
+    const customerName = firstName ? `${firstName} ${lastName || ''}`.trim() : 'Anonymous';
     const dateLabel = new Date(review.created_at).toLocaleDateString(undefined, {
         month: 'short', day: 'numeric', year: 'numeric'
     });
@@ -47,7 +49,7 @@ function ReviewCard({ review, showProductName, currentUserId, onEdit, onDelete }
             <View style={styles.reviewTop}>
                 <View style={styles.reviewerRow}>
                     <View style={styles.avatarPlaceholder}>
-                        <Text style={styles.avatarInitial}>{(review.customer?.first_name || 'U')[0]}</Text>
+                        <Text style={styles.avatarInitial}>{(firstName || 'A')[0]}</Text>
                     </View>
                     <View>
                         <Text style={styles.reviewerName}>{customerName}</Text>
@@ -99,11 +101,12 @@ export default function AllReviewsScreen({ navigation, route }) {
     const [reviews, setReviews] = useState([]);
     const [summary, setSummary] = useState({ average: 0, count: 0, distribution: [0, 0, 0, 0, 0] });
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     const product = route?.params?.product;
     const vendorId = route?.params?.vendorId;
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (product?.id || vendorId) {
             fetchData();
         }
@@ -111,6 +114,17 @@ export default function AllReviewsScreen({ navigation, route }) {
 
     const fetchData = async () => {
         setLoading(true);
+        await fetchReviews();
+        setLoading(false);
+    };
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await fetchReviews();
+        setRefreshing(false);
+    };
+
+    const fetchReviews = async () => {
         let reviewsRes, summaryRes;
 
         if (vendorId) {
@@ -127,7 +141,6 @@ export default function AllReviewsScreen({ navigation, route }) {
 
         if (reviewsRes?.data) setReviews(reviewsRes.data);
         if (summaryRes) setSummary(summaryRes);
-        setLoading(false);
     };
 
     // Client-side filter
@@ -166,9 +179,7 @@ export default function AllReviewsScreen({ navigation, route }) {
                         <MaterialIcons name="arrow-back" size={22} color={Colors.textMain} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Reviews & Feedback</Text>
-                    <TouchableOpacity style={styles.headerBtn}>
-                        <MaterialIcons name="more-horiz" size={22} color={Colors.textMain} />
-                    </TouchableOpacity>
+                    <View style={{ width: 40 }} />
                 </View>
 
                 {loading ? (
@@ -177,6 +188,14 @@ export default function AllReviewsScreen({ navigation, route }) {
                     <ScrollView
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={{ paddingBottom: 32 }}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={refreshing}
+                                onRefresh={onRefresh}
+                                colors={[Colors.primary]}
+                                tintColor={Colors.primary}
+                            />
+                        }
                     >
                         {/* ── Rating Summary ── */}
                         <View style={styles.summarySection}>

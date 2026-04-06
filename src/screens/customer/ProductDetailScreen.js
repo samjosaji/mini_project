@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
-    Image, Dimensions, StatusBar, Share, Linking, Platform, ActivityIndicator, Alert
+    Image, Dimensions, StatusBar, Share, Linking, Platform, ActivityIndicator, Alert, RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -43,6 +43,7 @@ export default function ProductDetailScreen({ navigation, route }) {
     const [reviews, setReviews] = useState([]);
     const [reviewStats, setReviewStats] = useState(null);
     const [loadingReviews, setLoadingReviews] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [favoriteLoading, setFavoriteLoading] = useState(false);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [liveVendor, setLiveVendor] = useState(null);
@@ -145,6 +146,18 @@ export default function ProductDetailScreen({ navigation, route }) {
         setLoadingReviews(false);
     };
 
+    const onRefresh = async () => {
+        setRefreshing(true);
+        // Re-fetch everything sequentially or concurrently
+        await Promise.all([
+            loadReviewData(),
+            checkFavoriteStatus(),
+            product?.vendor_id ? fetchFreshVendor() : Promise.resolve(),
+            fetchCustomerLocation()
+        ]);
+        setRefreshing(false);
+    };
+
     // Extract numeric rating and reviews - prioritizing live stats
     const rating = reviewStats ? parseFloat(reviewStats.average) : (parseFloat(product.rating) || 0);
     const reviewCount = reviewStats ? reviewStats.count : (product.reviews_count || 0);
@@ -237,7 +250,18 @@ export default function ProductDetailScreen({ navigation, route }) {
                     </View>
                 </View>
 
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: 100 }}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            colors={[Colors.primary]}
+                            tintColor={Colors.primary}
+                        />
+                    }
+                >
                     {/* ── Hero Image Carousel ── */}
                     <View style={styles.imageContainer}>
                         {productImages.length > 0 ? (

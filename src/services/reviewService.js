@@ -28,18 +28,38 @@ export const reviewService = {
      */
     async getReviewsByVendor(vendorId) {
         try {
+            // Step 1: Get all product IDs belonging to this vendor
+            const { data: products, error: prodError } = await supabase
+                .from('products')
+                .select('id, name')
+                .eq('vendor_id', vendorId);
+
+            if (prodError) throw prodError;
+            if (!products || products.length === 0) return { data: [], error: null };
+
+            const productIds = products.map(p => p.id);
+            const productMap = {};
+            products.forEach(p => { productMap[p.id] = p; });
+
+            // Step 2: Fetch reviews for those products with customer info
             const { data, error } = await supabase
                 .from('reviews')
                 .select(`
                     *,
-                    product:products!inner(id, name, vendor_id),
                     customer:users(first_name, last_name)
                 `)
-                .eq('product.vendor_id', vendorId)
+                .in('product_id', productIds)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
-            return { data, error: null };
+
+            // Attach product info to each review
+            const enriched = (data || []).map(r => ({
+                ...r,
+                product: productMap[r.product_id] || { id: r.product_id, name: 'Unknown' }
+            }));
+
+            return { data: enriched, error: null };
         } catch (error) {
             console.error('Error fetching vendor reviews:', error);
             return { data: null, error };
